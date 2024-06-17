@@ -5,22 +5,25 @@ import { useForm } from "react-hook-form"
 import {
   Form,
   FormControl,
-  FormDescription,
   FormField,
   FormItem,
   FormLabel,
   FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
+import { useToast } from "@/components/ui/use-toast"
 import { SignupValidation } from "@/lib/validation"
 import { Loader } from "lucide-react"
 import { Link } from "react-router-dom"
+import { useCreateUserAccount, useSignInAccount } from "@/lib/react-query/queriesAndMutations"
 
 
 const SignupForm = () => {
 
+  const { toast } = useToast();
 
-  const isLoading = false;
+  const { mutateAsync: createUserAccount, isLoading: isCreatingUser} = useCreateUserAccount();
+  const { mutateAsync: signInAccount, isLoading: isSigningIn} = useSignInAccount();
 
   // 1. Define your form.
   const form = useForm<z.infer<typeof SignupValidation>>({
@@ -34,10 +37,26 @@ const SignupForm = () => {
   })
  
   // 2. Define a submit handler.
-  function onSubmit(values: z.infer<typeof SignupValidation>) {
-    // Do something with the form values.
-    // ✅ This will be type-safe and validated.
-    console.log(values)
+  async function onSubmit(values: z.infer<typeof SignupValidation>) {
+    
+    const newUser = await createUserAccount(values);
+    console.log(newUser)
+
+    if(!newUser){
+      return toast({
+        title: "Sign Up Failed Please Try Again"
+      })
+    }
+
+    const session = await signInAccount ({
+      email: values.email,
+      password: values.password,
+    })
+
+    if(!session) {
+      return toast({title: "Sign In Failed. Please Try Again."})
+    }
+
   }
 
   return (
@@ -51,7 +70,7 @@ const SignupForm = () => {
       <form onSubmit={form.handleSubmit(onSubmit)} className="flex flex-col gap-5 w-full mt-4">
         <FormField
           control={form.control}
-          name="username"
+          name="name"
           render={({ field }) => (
             <FormItem>
               <FormLabel>Name</FormLabel>
@@ -82,7 +101,7 @@ const SignupForm = () => {
             <FormItem>
               <FormLabel>Email ID</FormLabel>
               <FormControl>
-                <Input type="password" className="shad-input" {...field} />
+                <Input type="text" className="shad-input" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -95,14 +114,14 @@ const SignupForm = () => {
             <FormItem>
               <FormLabel>Password</FormLabel>
               <FormControl>
-                <Input type="text" className="shad-input" {...field} />
+                <Input type="password" className="shad-input" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
         <Button type="submit" className="shad-button_primary">
-          {isLoading ? (
+          {isCreatingUser ? (
             <div className="flex-center gap-2">
              <Loader/> Loading...
             </div>
